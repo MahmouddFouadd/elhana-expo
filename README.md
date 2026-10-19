@@ -1,45 +1,37 @@
-# تطبيق تسجيل زوار المعرض – الهنا إليكتريك (7i-GEARS)
+# تطبيق تسجيل زوار المعرض – الهنا إليكتريك (7i-GEARS) – نسخة 2
 
-مجاني بالكامل: الصفحة على **GitHub Pages** أو **Cloudflare Pages**، والبيانات في **Supabase (Postgres)**.
+الجديد: "سجّله" بيتملي تلقائيًا من حساب الدخول، وتبويب **الفريق** للأدمن يضيف المستخدمين ويغيّر كلمات السر ويوقف الحسابات.
 
 ## الملفات
-| الملف | الدور |
+| الملف | فين |
 |---|---|
-| `index.html` | التطبيق كله (الشكل + الكود + اللوجو جوّاه) |
-| `sw.js` | يخلّي الصفحة تفتح من غير نت بعد أول مرة |
-| `manifest.webmanifest` + `icon-192.png` + `icon-512.png` | أيقونة "Add to Home Screen" |
-| `schema.sql` | الجدول والصلاحيات في Supabase (مش بيترفع على الموقع) |
+| `index.html`، `sw.js`، `manifest.webmanifest`، `icon-192.png`، `icon-512.png` | الريبو (الموقع) |
+| `schema.sql` | Supabase ← SQL Editor |
+| `supabase/functions/admin-users/index.ts` | Supabase ← Edge Functions |
 
-## 1) قاعدة البيانات
-1. https://supabase.com ← **New project** (اسم مثلاً `elhana-expo`، أقرب منطقة، احفظ كلمة سر القاعدة).
-2. **SQL Editor ← New query** ← الصق `schema.sql` ← **Run**. لازم يطلع `Success. No rows returned`.
-3. **Authentication ← Users ← Add user ← Create new user**: إيميل + كلمة سر + فعّل **Auto Confirm User**. حساب لكل موظف أو حساب مشترك.
-4. **Authentication ← Sign In / Providers**: اقفل **Allow new users to sign up**.
-5. **Project Settings ← API Keys**: انسخ **Project URL** و **Publishable key** (أو `anon` key من تبويب Legacy). متستخدمش أبدًا `secret` أو `service_role`.
+## الترقية (لو النسخة الأولى شغالة عندك)
+1. **SQL:** افتح `schema.sql`، وفي الخطوة 7 غيّر `admin@example.com` لإيميل حسابك اللي بتدخل بيه. الصقه في **SQL Editor** واعمل **Run**. آخر جدول لازم يطلع فيه حسابك `admin`. التشغيل آمن، والزوار القديمة مش هتتمسح.
+2. **Edge Function:** **Edge Functions ← Deploy a new function ← Via Editor**. الاسم لازم يكون `admin-users` بالظبط. الصق `index.ts` واعمل **Deploy**. بعدها من إعدادات الفانكشن اقفل **Verify JWT** (الفانكشن نفسها بتتأكد إن اللي بيطلب أدمن).
+3. **الموقع:** انقل سطري `SUPABASE_URL` و `SUPABASE_ANON_KEY` من `index.html` القديم للجديد، وارفع `index.html` و `sw.js`.
+4. ادخل بإيميلك الكامل ← تبويب **الفريق** ← ضيف المستخدمين.
 
-## 2) ضبط التطبيق
-في `index.html` في أول السكريبت التاني:
-```js
-var SUPABASE_URL = "https://xxxx.supabase.co";
-var SUPABASE_ANON_KEY = "sb_publishable_...";   // أو eyJ... لو anon القديم
-```
+## تركيب من الصفر
+1. Supabase ← **New project**.
+2. نفّذ خطوتي 1 و 2 اللي فوق. لازم تعمل حسابك انت الأول من **Authentication ← Users ← Add user** (فعّل **Auto Confirm User**) قبل تشغيل الـ SQL.
+3. **Authentication ← Sign In / Providers**: اقفل **Allow new users to sign up**.
+4. **Project Settings ← API Keys**: انسخ Project URL و Publishable key (أو anon) في أول السكريبت في `index.html`. متستخدمش `secret` أو `service_role` في الصفحة أبدًا.
+5. ارفع ملفات الموقع على GitHub Pages أو Cloudflare Pages.
+6. على كل موبايل: افتح الرابط والنت شغال ← دخول ← **Add to Home Screen**.
 
-## 3) النشر (ارفع كل الملفات ما عدا schema.sql و README في جذر الريبو)
-**GitHub Pages:** New repository ← Upload files ← Settings ← Pages ← Branch `main` / root ← Save ← الرابط `https://USERNAME.github.io/REPO/`.
-**Cloudflare Pages:** Workers & Pages ← Create ← Pages ← Connect to Git ← اختار الريبو ← Build command فاضي، Output directory `/` ← Deploy.
-
-## 4) على الموبايلات
-افتح الرابط ← سجّل دخول ← **Add to Home Screen**. افتحه مرة واحدة والنت شغال قبل المعرض عشان يتحفظ على الجهاز.
-
-## اختبار سريع قبل المعرض
-- سجّل زائر تجريبي ← يظهر في السجل وفي Supabase ← Table Editor ← visitors.
-- افتح من موبايلين: اللي يتسجل على واحد يظهر على التاني لوحده خلال ثانية.
-- اقفل النت وسجّل زائر ← يظهر "منتظر الرفع" ← افتح النت ← يترفع لوحده.
-- جرّب تعديل، تغيير الدرجة، حذف، تصدير.
-- امسح البيانات التجريبية من Table Editor.
+## إزاي المستخدمين بيشتغلوا
+- الأدمن بيكتب **اسم مستخدم** (زي `user.name`) وكلمة سر، والموظف يدخل بيهم. Supabase بيحتاج إيميل، فالتطبيق بيحوّل الاسم لـ `user.name@elhana.local` من غير ما حد يحس. لو Supabase رفض الإيميل ده، اكتب إيميل حقيقي مكان اسم المستخدم وهيشتغل.
+- **موظف:** يسجّل ويعدّل ويشوف السجل. **أدمن:** كل ده + تبويب الفريق.
+- **إيقاف** الحساب بيقفل عليه فورًا، حتى لو كان داخل على موبايله. زواره القديمة بتفضل باسمه.
+- اسم "سجّله" بيتحط من السيرفر، فمحدش يقدر يسجّل باسم حد تاني، ولا يغيّره بعدين بالتعديل.
+- الزوار القديمة اللي اتكتب فيها الاسم بإيد بتفضل زي ما هي.
+- لو موظف سجّل من غير نت وبعدين حد تاني دخل على نفس الموبايل، زوار الأول بتستنى لحد ما هو يدخل تاني، فتترفع باسمه هو.
 
 ## ملاحظات
-- **صدّر نسخة آخر كل يوم** من زرار "تصدير" (CSV يفتح في Excel بالعربي).
+- صدّر نسخة CSV آخر كل يوم.
 - Supabase المجاني بيوقف المشروع لو ما اتستخدمش أسبوع؛ ادخل عليه قبل المعرض بيوم.
-- لو عدّلت `index.html` بعد النشر، ارفع رقم `VERSION` في `sw.js` عشان الموبايلات تاخد النسخة الجديدة.
-- الحذف والتعديل محتاجين نت؛ التسجيل بس اللي بيشتغل أوفلاين.
+- لو عدّلت `index.html` بعد النشر، ارفع `VERSION` في `sw.js`.

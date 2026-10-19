@@ -154,6 +154,12 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:0}
 
 .editbar{display:flex;align-items:center;gap:10px;margin:-4px 0 14px;padding:10px 14px;border-radius:14px;background:var(--warm-t);color:var(--text);font-size:.92rem}
 .editbar span{flex:1;min-width:0}
+.who{margin:18px 0 0;color:var(--mute);font-size:.9rem}
+.who b{color:var(--text)}
+.ued{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-top:10px;align-items:end}
+.ued label{margin:0 0 4px;font-size:.8rem}
+@media (max-width:480px){.ued{grid-template-columns:1fr}}
+.pill.adm{background:var(--brand);color:var(--on-brand)}.pill.stf{background:var(--input);color:var(--text)}.pill.off{background:var(--hot-t);color:var(--hot)}.pill.you{background:var(--ok-t);color:var(--ok)}
 .dupe{margin:10px 0 0;padding:10px 14px;border-radius:14px;background:var(--warm-t);font-size:.9rem}
 
 /* ---------- السجل ---------- */
@@ -239,9 +245,9 @@ html[data-theme="dark"] .toast{background:#F1F1F3;color:#111215}
 <section id="vlogin" class="panel login hide">
   <span class="logo" role="img" aria-label="شعار الهنا إليكتريك"></span>
   <h2>دخول فريق المعرض</h2>
-  <p>استخدم الإيميل وكلمة السر اللي اتعملوا لك</p>
+  <p>ادخل باسم المستخدم وكلمة السر اللي الأدمن عملهم لك</p>
   <form id="lform" novalidate>
-    <label for="em">الإيميل</label><input id="em" type="email" dir="ltr" autocomplete="username" inputmode="email" required>
+    <label for="em">اسم المستخدم</label><input id="em" type="text" dir="ltr" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="user.name" required>
     <label for="pw">كلمة السر</label><input id="pw" type="password" dir="ltr" autocomplete="current-password" required>
     <button class="btn big" id="login" type="submit">دخول</button>
   </form>
@@ -253,6 +259,7 @@ html[data-theme="dark"] .toast{background:#F1F1F3;color:#111215}
     <span class="ind" aria-hidden="true"></span>
     <button type="button" data-v="1" class="on" aria-current="page">تسجيل زائر</button>
     <button type="button" data-v="2">السجل <b id="cnt">0</b></button>
+    <button type="button" data-v="3" id="tabTeam" class="hide">الفريق</button>
   </nav>
 
   <section id="v1" class="view">
@@ -293,8 +300,8 @@ html[data-theme="dark"] .toast{background:#F1F1F3;color:#111215}
     <h2>المتابعة</h2>
     <label for="project">المشروع / الكمية / الجدول الزمني</label><textarea id="project"></textarea>
     <label for="notes">ملاحظات / المتابعة المطلوبة</label><textarea id="notes" placeholder="مثال: نبعت له عرض سعر خلال أسبوع"></textarea>
-    <label for="by">اسم الموظف اللي سجّل</label><input id="by" placeholder="اسمك" autocomplete="off">
 
+    <p class="who">هيتسجل باسم <b id="meName"></b></p>
     <div class="dupe hide" id="dupe"></div>
     <div class="savebar"><button class="btn big accent" id="save" type="submit">حفظ الزائر</button></div>
   </form>
@@ -315,6 +322,21 @@ html[data-theme="dark"] .toast{background:#F1F1F3;color:#111215}
     <p class="info" id="info"></p>
     <div id="list"></div>
   </section>
+
+  <section id="v3" class="view hide">
+    <form id="ufrm" class="panel" novalidate autocomplete="off">
+      <h2>إضافة مستخدم</h2>
+      <div class="grid">
+        <div><label for="u_name">الاسم اللي هيظهر في السجل <span class="req">*</span></label><input id="u_name" placeholder="الاسم الظاهر"></div>
+        <div><label for="u_user">اسم المستخدم للدخول <span class="req">*</span></label><input id="u_user" dir="ltr" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="user.name"></div>
+        <div><label for="u_pw">كلمة السر <span class="req">*</span></label><input id="u_pw" type="text" dir="ltr" autocomplete="new-password" autocapitalize="none" placeholder="6 حروف على الأقل"></div>
+        <div><label for="u_role">الصلاحية</label><select id="u_role"><option value="staff">موظف – يسجّل ويشوف السجل</option><option value="admin">أدمن – وكمان يدير المستخدمين</option></select></div>
+      </div>
+      <button class="btn big" id="u_add" type="submit">إضافة المستخدم</button>
+    </form>
+    <p class="info" id="uinfo"></p>
+    <div id="ulist"></div>
+  </section>
 </div>
 </main>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -329,14 +351,14 @@ var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 var $=function(i){return document.getElementById(i)};
 var PL={hot:"🔥 ساخن",warm:"🌤 متوسط",cold:"❄️ بارد"};
 var FIELDS=["name","company","job","phone","email","project","notes"];
-var K_OUT="expo.outbox",K_CACHE="expo.cache",K_BY="by",K_THEME="expo.theme";
+var K_OUT="expo.outbox",K_CACHE="expo.cache",K_ME="expo.me",K_THEME="expo.theme";
+var me=null,team=[],checking=null;
 var sb=null,authed=null,all=[],outbox=[],editingId=null,editPhone="",dupeKey=null,filterP="",flushing=false,loadSeq=0,channel=null;
 
 /* ---------- تخزين محلي آمن ---------- */
 function lsGet(k,d){try{var v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 outbox=lsGet(K_OUT,[]);if(!Array.isArray(outbox))outbox=[];
-try{$("by").value=localStorage.getItem(K_BY)||""}catch(e){}
 
 /* ---------- الوضع الغامق ---------- */
 var mq=matchMedia("(prefers-color-scheme: dark)");
@@ -356,12 +378,12 @@ var cur=1;
 function placeInd(){var b=document.querySelector("#tabs button.on"),ind=document.querySelector("#tabs .ind");if(!b||!ind||!b.offsetWidth)return;ind.style.left=b.offsetLeft+"px";ind.style.width=b.offsetWidth+"px"}
 function show(n){
   if(n!==cur){var v=$("v"+n);v.classList.remove("in");void v.offsetWidth;v.classList.add("in")}
-  cur=n;$("v1").classList.toggle("hide",n!==1);$("v2").classList.toggle("hide",n!==2);
+  cur=n;[1,2,3].forEach(function(k){$("v"+k).classList.toggle("hide",n!==k)});if(n===3)loadTeam();
   [].forEach.call(document.querySelectorAll("#tabs button"),function(b){var on=+b.dataset.v===n;b.classList.toggle("on",on);if(on)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current")});
   placeInd();
 }
 [].forEach.call(document.querySelectorAll("#tabs button"),function(b){b.onclick=function(){show(+b.dataset.v)}});
-[$("v1"),$("v2")].forEach(function(v){v.addEventListener("animationend",function(e){if(e.target===v)v.classList.remove("in")})});
+[$("v1"),$("v2"),$("v3")].forEach(function(v){v.addEventListener("animationend",function(e){if(e.target===v)v.classList.remove("in")})});
 addEventListener("resize",placeInd);
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(placeInd);
 
@@ -395,21 +417,22 @@ function errText(e){if(!e)return "خطأ غير معروف";var c=e.code||"";
 
 /* ---------- حالة الاتصال ---------- */
 function updNet(){
-  var n=$("net"),p=outbox.length;
+  var n=$("net"),p=myOut().length;
   if(!authed){n.classList.add("hide");return}
   n.classList.remove("hide","off","wait");
   if(p){n.classList.add("wait");n.textContent=p+" منتظر الرفع";n.title="اضغط للرفع دلوقتي"}
   else if(!navigator.onLine){n.classList.add("off");n.textContent="بدون نت";n.title="التسجيل شغال وهيترفع لما النت يرجع"}
   else{n.textContent="متصل";n.title="متصل بقاعدة البيانات"}
 }
-$("net").onclick=function(){if(outbox.length)flush(true);else load()};
+$("net").onclick=function(){if(myOut().length)flush(true);else load()};
 addEventListener("online",function(){updNet();flush();load()});
 addEventListener("offline",updNet);
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&authed){flush();load()}});
-setInterval(function(){if(authed&&outbox.length&&navigator.onLine)flush()},30000);
+setInterval(function(){if(authed&&myOut().length&&navigator.onLine)flush()},30000);
 
 /* ---------- عرض القائمة ---------- */
-function rowsAll(){return outbox.map(function(o){var r=Object.assign({},o.rec);r._pending=true;r._err=o.err||"";return r}).concat(all)}
+function myOut(){return outbox.filter(function(o){return !o.uid||(me&&o.uid===me.id)})}
+function rowsAll(){return myOut().map(function(o){var r=Object.assign({},o.rec);r._pending=true;r._err=o.err||"";return r}).concat(all)}
 function el(tag,cls,txt){var e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e}
 function filtered(){
   var q=$("q").value.trim().toLowerCase(),qd=digits(q);
@@ -523,30 +546,28 @@ var rt=null;function loadSoon(){clearTimeout(rt);rt=setTimeout(load,600)}
 
 /* ---------- رفع المنتظر (لما النت يقطع في المعرض) ---------- */
 function flush(manual){
-  if(!sb||!authed||flushing||!outbox.length)return;
+  if(!sb||!authed||flushing)return;
+  var q=myOut();if(!q.length)return;
   if(!navigator.onLine){if(manual)toast("لسه مفيش نت",true);return}
-  flushing=true;var done=0;
+  flushing=true;var done=0,i=0;
   (function next(){
-    if(!outbox.length){flushing=false;finish();return}
-    var o=outbox[0];
+    if(i>=q.length){flushing=false;finish();return}
+    var o=q[i++];
     sb.from("visitors").insert(o.rec).then(function(r){
-      if(!r.error||r.error.code==="23505"){outbox.shift();done++;lsSet(K_OUT,outbox);updNet();return next()}
+      if(!r.error||r.error.code==="23505"){outbox=outbox.filter(function(x){return x!==o});done++;lsSet(K_OUT,outbox);updNet();return next()}
       if(isNetErr(r.error)){flushing=false;finish();return}
-      o.err=errText(r.error);lsSet(K_OUT,outbox);
-      outbox.push(outbox.shift());              // متعلقش الطابور على سجل فيه مشكلة
-      if(outbox.every(function(x){return x.err})){flushing=false;finish();return}
-      next();
+      o.err=errText(r.error);lsSet(K_OUT,outbox);next();   // سجل فيه مشكلة ميوقفش الباقي
     });
   })();
-  function finish(){updNet();render();if(done){toast("اترفع "+done+" زائر كانوا منتظرين");load()}
-    else if(manual&&outbox.length)toast(outbox[0].err||"لسه مفيش نت",true)}
+  function finish(){updNet();render();var m=myOut();if(done){toast("اترفع "+done+" زائر كانوا منتظرين");load()}
+    else if(manual&&m.length)toast(m[0].err||"لسه مفيش نت",true)}
 }
 
 /* ---------- النموذج ---------- */
 function val(i){return $(i).value.trim()}
 function clearInvalid(){[].forEach.call(document.querySelectorAll("#frm .invalid"),function(x){x.classList.remove("invalid")})}
 function bad(id,t){var e=$(id);e.classList.add("invalid");e.focus();toast(t,true);return false}
-FIELDS.concat(["by"]).forEach(function(i){$(i).addEventListener("input",function(){this.classList.remove("invalid");if(i==="phone"||i==="name"){dupeKey=null;$("dupe").classList.add("hide")}})});
+FIELDS.forEach(function(i){$(i).addEventListener("input",function(){this.classList.remove("invalid");if(i==="phone"||i==="name"){dupeKey=null;$("dupe").classList.add("hide")}})});
 function resetForm(){
   FIELDS.forEach(function(i){$(i).value=""});$("type").value="";
   [].forEach.call(document.querySelectorAll("#interest input"),function(x){x.checked=false});
@@ -560,12 +581,11 @@ function startEdit(r){
   if(r.visitor_type&&t.value!==r.visitor_type){var o=el("option",null,r.visitor_type);t.appendChild(o);t.value=r.visitor_type}
   [].forEach.call(document.querySelectorAll("#interest input"),function(x){x.checked=(r.interest||[]).indexOf(x.value)>-1});
   var p=document.querySelector('input[name=p][value="'+(r.priority||"warm")+'"]');if(p)p.checked=true;
-  $("by").value=r.collected_by||"";
   $("editname").textContent=r.name;$("editbar").classList.remove("hide");
   $("save").textContent="حفظ التعديلات";clearInvalid();$("dupe").classList.add("hide");
   show(1);scrollTo({top:0,behavior:"smooth"});
 }
-function endEdit(){editingId=null;$("editbar").classList.add("hide");$("save").textContent="حفظ الزائر";resetForm();try{$("by").value=localStorage.getItem(K_BY)||""}catch(e){}}
+function endEdit(){editingId=null;$("editbar").classList.add("hide");$("save").textContent="حفظ الزائر";resetForm()}
 $("cancelEdit").onclick=endEdit;
 
 function collect(){
@@ -573,7 +593,7 @@ function collect(){
     visitor_type:$("type").value,
     interest:[].map.call(document.querySelectorAll("#interest input:checked"),function(x){return x.value}),
     project:val("project"),priority:(document.querySelector("input[name=p]:checked")||{value:"warm"}).value,
-    collected_by:val("by"),notes:val("notes")};
+    notes:val("notes")};
 }
 function validate(rec){
   clearInvalid();
@@ -597,7 +617,6 @@ $("frm").addEventListener("submit",function(ev){
     b.appendChild(document.createTextNode((dp.company?" ("+dp.company+")":"")+". لو زائر تاني فعلاً اضغط حفظ مرة كمان."));
     b.classList.remove("hide");b.scrollIntoView({block:"nearest",behavior:"smooth"});return;
   }
-  try{localStorage.setItem(K_BY,rec.collected_by)}catch(e){}
   var btn=$("save");btn.disabled=true;
   if(editingId){
     if(!navigator.onLine){toast("التعديل محتاج نت – جرّب لما النت يرجع",true);btn.disabled=false;return}
@@ -611,8 +630,9 @@ $("frm").addEventListener("submit",function(ev){
     return;
   }
   rec.id=uuid();rec.created_at=new Date().toISOString();
+  rec.collected_by=me.display_name;rec.collected_by_id=me.id;   // السيرفر بيثبّتهم من حساب الدخول مهما اتبعت
   function saved(msg){btn.disabled=false;resetForm();scrollTo({top:0,behavior:"smooth"});toast(msg);setTimeout(function(){$("name").focus({preventScroll:true})},350)}
-  function queue(){outbox.push({rec:rec});lsSet(K_OUT,outbox);updNet();render();saved("📥 اتسجل على الموبايل – هيترفع أول ما النت يرجع")}
+  function queue(){outbox.push({rec:rec,uid:me.id});lsSet(K_OUT,outbox);updNet();render();saved("📥 اتسجل على الموبايل – هيترفع أول ما النت يرجع")}
   if(!navigator.onLine)return queue();
   sb.from("visitors").insert(rec).then(function(r){
     if(r.error&&r.error.code!=="23505"){
@@ -656,26 +676,146 @@ function setAuth(on){
   $("vlogin").classList.toggle("hide",on);$("app").classList.toggle("hide",!on);$("logout").classList.toggle("hide",!on);
   updNet();
   if(on){all=lsGet(K_CACHE,[]);render();show(1);placeInd();load();flush();subscribe()}
-  else{all=[];editingId=null;if(channel){try{sb.removeChannel(channel)}catch(e){}channel=null}setTimeout(function(){$("em").focus()},50)}
+  else{all=[];team=[];me=null;editingId=null;$("tabTeam").classList.add("hide");
+    if(channel){try{sb.removeChannel(channel)}catch(e){}channel=null}setTimeout(function(){$("em").focus()},50)}
 }
-sb.auth.getSession().then(function(r){setAuth(!!(r.data&&r.data.session))},function(){setAuth(false)});
-sb.auth.onAuthStateChange(function(ev,s){setAuth(!!s)});
+function applyMe(){
+  $("meName").textContent=me.display_name;
+  $("logout").title="خروج ("+me.display_name+")";
+  $("tabTeam").classList.toggle("hide",me.role!=="admin");
+  if(me.role!=="admin"&&cur===3)show(1);
+  placeInd();
+}
+function deny(t){checking=null;try{sb.auth.signOut()}catch(e){}setAuth(false);var m=$("lmsg");m.textContent=t;m.classList.remove("hide")}
+/* بعد الدخول: نجيب اسم المستخدم وصلاحيته من جدول profiles */
+function onSession(s){
+  if(!s){checking=null;setAuth(false);return}
+  var uid=s.user&&s.user.id;if(!uid)return;
+  if((authed&&me&&me.id===uid)||checking===uid)return;
+  checking=uid;
+  sb.from("profiles").select("id,display_name,role,active").eq("id",uid).maybeSingle().then(function(r){
+    if(checking!==uid)return;checking=null;
+    var p=r.data;
+    if(r.error){
+      if(isNetErr(r.error)){var c=lsGet(K_ME,null);p=c&&c.id===uid?c:null;if(!p)return deny("مفيش نت – أول دخول لازم يكون والنت شغال")}
+      else if(/profiles/i.test(r.error.message||""))return deny("جدول المستخدمين مش موجود – شغّل schema.sql الجديد في Supabase");
+      else return deny("تعذّر قراءة بيانات حسابك: "+errText(r.error));
+    }
+    if(!p)return deny("حسابك مش متسجل في الفريق – كلم الأدمن");
+    if(!p.active)return deny("حسابك متوقف – كلم الأدمن");
+    me=p;lsSet(K_ME,p);setAuth(true);applyMe();
+  });
+}
+sb.auth.getSession().then(function(r){onSession(r.data&&r.data.session)},function(){setAuth(false)});
+sb.auth.onAuthStateChange(function(ev,s){setTimeout(function(){onSession(s)},0)});
+
+/* اسم المستخدم بيتحول لإيميل داخلي، لأن Supabase بيدخّل بالإيميل */
+var USER_DOMAIN="elhana.local";
+function toEmail(u){u=String(u||"").trim().toLowerCase();return u.indexOf("@")>-1?u:u+"@"+USER_DOMAIN}
+function userName(e){e=String(e||"");var d="@"+USER_DOMAIN;return e.slice(-d.length)===d?e.slice(0,-d.length):e}
 
 $("lform").addEventListener("submit",function(ev){
   ev.preventDefault();
   var em=$("em").value.trim(),pw=$("pw").value,m=$("lmsg");m.classList.add("hide");
-  if(!em||!pw){m.textContent="اكتب الإيميل وكلمة السر";m.classList.remove("hide");return}
+  if(!em||!pw){m.textContent="اكتب اسم المستخدم وكلمة السر";m.classList.remove("hide");return}
   $("login").disabled=true;$("login").textContent="جاري الدخول…";
-  sb.auth.signInWithPassword({email:em,password:pw}).then(function(r){
-    if(r.error){m.textContent=/invalid login|credentials/i.test(r.error.message)?"الإيميل أو كلمة السر غلط":/confirm/i.test(r.error.message)?"الحساب لسه متفعّلش – فعّل Auto Confirm من Supabase":isNetErr(r.error)?"مفيش اتصال بالنت":r.error.message;m.classList.remove("hide")}
+  sb.auth.signInWithPassword({email:toEmail(em),password:pw}).then(function(r){
+    if(r.error){m.textContent=/invalid login|credentials/i.test(r.error.message)?"اسم المستخدم أو كلمة السر غلط":/banned/i.test(r.error.message)?"حسابك متوقف – كلم الأدمن":isNetErr(r.error)?"مفيش اتصال بالنت":r.error.message;m.classList.remove("hide")}
     else $("pw").value="";
   },function(){m.textContent="مفيش اتصال بالنت";m.classList.remove("hide")}).then(function(){$("login").disabled=false;$("login").textContent="دخول"});
 });
 var outArm=false;
 $("logout").onclick=function(){
-  if(outbox.length&&!outArm){outArm=true;toast("فيه "+outbox.length+" زائر لسه ما اترفعوش. هيفضلوا محفوظين على الجهاز ويترفعوا لما تدخل تاني. اضغط خروج مرة كمان للتأكيد",true);setTimeout(function(){outArm=false},5000);return}
+  var n=myOut().length;
+  if(n&&!outArm){outArm=true;toast("فيه "+n+" زائر لسه ما اترفعوش. هيفضلوا محفوظين على الجهاز ويترفعوا لما تدخل بنفس الحساب. اضغط خروج مرة كمان للتأكيد",true);setTimeout(function(){outArm=false},5000);return}
   outArm=false;sb.auth.signOut();setAuth(false);
 };
+
+/* ---------- إدارة المستخدمين (للأدمن بس) ---------- */
+var FNERR={not_admin:"الصلاحية دي للأدمن بس",not_signed_in:"الجلسة انتهت – اخرج وادخل تاني",user_exists:"اسم المستخدم ده موجود قبل كده",
+  weak_password:"كلمة السر لازم 6 حروف على الأقل",self_lock:"مينفعش توقف حسابك أو تشيل صلاحية الأدمن من نفسك",missing_fields:"فيه بيانات ناقصة"};
+function adminCall(body){
+  if(!navigator.onLine)return Promise.reject(new Error("إدارة المستخدمين محتاجة نت"));
+  return sb.functions.invoke("admin-users",{body:body}).then(function(r){
+    if(!r.error)return r.data||{};
+    var c=r.error.context,st=c&&c.status;
+    if(st===404)throw new Error("الـ Edge Function «admin-users» مش متركبة في Supabase – راجع README");
+    var p=c&&c.json?c.json().catch(function(){return{}}):Promise.resolve({});
+    return p.then(function(j){var k=j&&j.error;throw new Error(FNERR[k]||k||(st===401?"Supabase رفض الطلب (401) – اقفل Verify JWT في إعدادات الفانكشن":"تعذّر الاتصال بإدارة المستخدمين"))});
+  });
+}
+function loadTeam(){
+  if(!me||me.role!=="admin")return;
+  $("uinfo").textContent="بيحمّل المستخدمين…";
+  adminCall({action:"list"}).then(function(d){team=d.users||[];renderTeam()},function(e){$("uinfo").textContent="";toast(e.message,true)});
+}
+function renderTeam(){
+  var box=$("ulist");box.textContent="";
+  var act=team.filter(function(u){return u.active}).length;
+  $("uinfo").textContent=team.length?(team.length+" مستخدم، منهم "+act+" شغالين"):"";
+  team.forEach(function(u){
+    var d=el("article","panel lead "+(u.active?"":"hot"));
+    var hd=el("div","hd");hd.appendChild(el("h3",null,u.display_name));
+    if(me&&u.id===me.id)hd.appendChild(el("span","pill you","أنت"));
+    if(!u.active)hd.appendChild(el("span","pill off","موقوف"));
+    hd.appendChild(el("span","pill "+(u.role==="admin"?"adm":"stf"),u.role==="admin"?"أدمن":"موظف"));
+    d.appendChild(hd);
+    var un=el("div","sub ph mono");un.appendChild(el("span",null,userName(u.email)));d.appendChild(un);
+    var n=all.filter(function(r){return r.collected_by_id===u.id}).length;
+    d.appendChild(el("div","meta","سجّل "+n+" زائر"));
+    var ac=el("div","acts");
+    var ed=el("button",null,"✏️ الاسم / كلمة السر");ed.type="button";ac.appendChild(ed);
+    var self=me&&u.id===me.id;
+    if(!self){
+      var st=el("button",u.active?"del":null,u.active?"⏸ إيقاف":"▶️ تفعيل");st.type="button";
+      st.onclick=function(){
+        if(u.active&&!st.classList.contains("arm")){st.classList.add("arm");st.textContent="تأكيد الإيقاف";setTimeout(function(){st.classList.remove("arm");st.textContent="⏸ إيقاف"},3000);return}
+        upd({id:u.id,active:!u.active},u.active?"اتوقف – مش هيقدر يدخل":"اتفعّل",st)};
+      ac.appendChild(st);
+      var rl=el("button",null,u.role==="admin"?"خليه موظف":"خليه أدمن");rl.type="button";
+      rl.onclick=function(){upd({id:u.id,role:u.role==="admin"?"staff":"admin"},"الصلاحية اتغيرت",rl)};ac.appendChild(rl);
+    }
+    d.appendChild(ac);
+    var pane=el("div","ued hide");
+    var w1=el("div"),l1=el("label",null,"الاسم الظاهر"),i1=el("input");i1.value=u.display_name;w1.appendChild(l1);w1.appendChild(i1);
+    var w2=el("div"),l2=el("label",null,"كلمة سر جديدة (سيبها فاضية لو مش هتغيرها)"),i2=el("input");i2.type="text";i2.dir="ltr";i2.autocomplete="new-password";w2.appendChild(l2);w2.appendChild(i2);
+    var sv=el("button","btn","حفظ");sv.type="button";
+    sv.onclick=function(){
+      var body={id:u.id},nm=i1.value.trim(),pw=i2.value;
+      if(!nm){i1.classList.add("invalid");return toast("الاسم مينفعش يبقى فاضي",true)}
+      if(nm!==u.display_name)body.display_name=nm;
+      if(pw){if(pw.length<6){i2.classList.add("invalid");return toast(FNERR.weak_password,true)}body.password=pw}
+      if(Object.keys(body).length<2){pane.classList.add("hide");return}
+      upd(body,pw?"اتحفظ – كلمة السر الجديدة: "+pw:"الاسم اتغير",sv);
+    };
+    pane.appendChild(w1);pane.appendChild(w2);pane.appendChild(sv);d.appendChild(pane);
+    ed.onclick=function(){pane.classList.toggle("hide");if(!pane.classList.contains("hide"))i1.focus()};
+    box.appendChild(d);
+  });
+}
+function upd(body,okMsg,btn){
+  body.action="update";if(btn)btn.disabled=true;
+  adminCall(body).then(function(){
+    toast(okMsg);
+    if(me&&body.id===me.id&&body.display_name){me.display_name=body.display_name;lsSet(K_ME,me);applyMe()}
+    loadTeam();
+  },function(e){toast(e.message,true);if(btn)btn.disabled=false});
+}
+["u_name","u_user","u_pw"].forEach(function(i){$(i).addEventListener("input",function(){this.classList.remove("invalid")})});
+$("ufrm").addEventListener("submit",function(ev){
+  ev.preventDefault();
+  var nm=$("u_name").value.trim(),un=$("u_user").value.trim().toLowerCase(),pw=$("u_pw").value,role=$("u_role").value;
+  [].forEach.call(document.querySelectorAll("#ufrm .invalid"),function(x){x.classList.remove("invalid")});
+  function no(id,t){$(id).classList.add("invalid");$(id).focus();toast(t,true)}
+  if(!nm)return no("u_name","اكتب الاسم اللي هيظهر في السجل");
+  if(!un)return no("u_user","اكتب اسم المستخدم");
+  if(un.indexOf("@")<0&&!/^[a-z0-9._-]{3,30}$/.test(un))return no("u_user","اسم المستخدم: حروف إنجليزي وأرقام و . _ - من 3 لـ 30");
+  if(pw.length<6)return no("u_pw",FNERR.weak_password);
+  var b=$("u_add");b.disabled=true;b.textContent="بيضيف…";
+  adminCall({action:"create",display_name:nm,email:toEmail(un),password:pw,role:role}).then(function(){
+    toast("✅ اتضاف "+nm+" – يدخل بـ "+un);$("u_name").value="";$("u_user").value="";$("u_pw").value="";$("u_role").value="staff";loadTeam();
+  },function(e){toast(e.message,true)}).then(function(){b.disabled=false;b.textContent="إضافة المستخدم"});
+});
 })();
 
 /* ---------- يشتغل من غير نت بعد أول فتحة ---------- */

@@ -1,6 +1,6 @@
 /* عامل الخدمة: يخلّي الصفحة تفتح من غير نت بعد أول مرة.
    لو عدّلت index.html ارفع رقم VERSION عشان الموبايلات تاخد النسخة الجديدة. */
-var VERSION = "expo-v1.0.0";
+var VERSION = "expo-v2.0.0";
 var SHELL = [
   "./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png",
   "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"
